@@ -4,21 +4,28 @@ echo AI Sim Racing Coach - Starting...
 echo ========================================
 echo.
 
-echo Starting backend...
-cd backend
-start "Backend" python main.py
+echo Starting backend server (port 5001)...
+start "Backend" cmd /k "cd backend && py main.py"
 
-timeout /t 3
+timeout /t 2 /nobreak >nul
 
-echo Starting frontend...
-cd ../frontend
-start "Frontend" python -m http.server 8080
+echo Starting frontend server (port 8080)...
+start "Frontend" cmd /k "cd frontend && py -m http.server 8080"
+
+timeout /t 2 /nobreak >nul
 
 echo.
 echo ========================================
-echo Dashboard: http://localhost:8080
-echo Backend API: http://localhost:5001
-echo.
-echo Close these windows to stop the servers
+echo Dashboard is starting!
 echo ========================================
+echo.
+echo Backend:  http://localhost:5001
+echo Frontend: http://localhost:8080
+echo.
+echo Two terminal windows have opened.
+echo Close them to stop the servers.
+echo.
+echo Now launch ACC and start a session!
+echo The dashboard will auto-detect within 5 seconds.
+echo.
 pause
