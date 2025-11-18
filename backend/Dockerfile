@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY main.py .
 COPY demo_telemetry_generator.py .
+COPY telemetry_readers/ ./telemetry_readers/
 
 # Expose ports
 EXPOSE 5001
