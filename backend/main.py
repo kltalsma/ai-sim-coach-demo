@@ -375,10 +375,36 @@ async def stop_demo():
     return {"status": "already_stopped", "message": "Demo mode already stopped"}
 
 
+@app.post("/acc/start")
+async def start_acc():
+    """Start ACC telemetry reading"""
+    global demo_task, demo_running
+    if not demo_running:
+        demo_running = True
+        demo_task = asyncio.create_task(acc_mode())
+        return {"status": "started", "message": "ACC telemetry reading started"}
+    return {"status": "already_running", "message": "A telemetry mode is already running"}
+
+
+@app.post("/acc/stop")
+async def stop_acc():
+    """Stop ACC telemetry reading"""
+    global demo_task, demo_running
+    if demo_running:
+        demo_running = False
+        if demo_task:
+            demo_task.cancel()
+            try:
+                await demo_task
+            except asyncio.CancelledError:
+                pass
+        return {"status": "stopped", "message": "ACC telemetry reading stopped"}
+    return {"status": "already_stopped", "message": "No telemetry mode running"}
+
+
 async def udp_receiver_acc():
     """UDP receiver for Assetto Corsa Competizione"""
-    # TODO: Implement ACC shared memory reader
-    # ACC uses shared memory, not UDP
+    # ACC uses shared memory, not UDP - see acc_mode() instead
     print(f"ACC receiver: Use shared memory interface (not UDP)")
     pass
 
@@ -480,6 +506,95 @@ async def demo_mode():
         
         await telemetry_hub.broadcast_telemetry(unified)
         await asyncio.sleep(0.016)  # 60 FPS
+
+
+async def acc_mode():
+    """ACC mode with real telemetry from Assetto Corsa Competizione"""
+    global demo_running
+    print("🏎️  Starting ACC mode - reading telemetry from Assetto Corsa Competizione")
+    
+    from telemetry_readers.acc_reader import ACCReader
+    
+    reader = ACCReader()
+    
+    # Try to connect
+    connected = await reader.connect()
+    if not connected:
+        print("❌ Failed to connect to ACC. Make sure ACC is running.")
+        demo_running = False
+        return
+    
+    print("✅ Connected to ACC successfully!")
+    
+    try:
+        while demo_running:
+            # Read telemetry from ACC
+            data = await reader.read_telemetry()
+            
+            if data:
+                # Convert to unified format expected by frontend
+                unified = UnifiedTelemetry(
+                    timestamp=time.time(),
+                    game=GameType.ACC.value,
+                    speed=data.speed,
+                    rpm=data.rpm,
+                    gear=data.gear,
+                    max_rpm=data.max_rpm,
+                    lap_distance=data.lap_distance,
+                    lap_time=data.lap_time,
+                    lap_number=data.lap_number,
+                    last_lap_time=data.last_lap_time,
+                    best_lap_time=data.best_lap_time,
+                    current_lap_time=data.lap_time,
+                    throttle=data.throttle,
+                    brake=data.brake,
+                    clutch=data.clutch,
+                    steering=data.steering,
+                    g_force_lateral=data.g_force_lateral,
+                    g_force_longitudinal=data.g_force_longitudinal,
+                    g_force_vertical=data.g_force_vertical,
+                    tire_temp_fl=data.tire_temp_fl,
+                    tire_temp_fr=data.tire_temp_fr,
+                    tire_temp_rl=data.tire_temp_rl,
+                    tire_temp_rr=data.tire_temp_rr,
+                    tire_pressure_fl=data.tire_pressure_fl,
+                    tire_pressure_fr=data.tire_pressure_fr,
+                    tire_pressure_rl=data.tire_pressure_rl,
+                    tire_pressure_rr=data.tire_pressure_rr,
+                    brake_temp_fl=data.brake_temp_fl,
+                    brake_temp_fr=data.brake_temp_fr,
+                    brake_temp_rl=data.brake_temp_rl,
+                    brake_temp_rr=data.brake_temp_rr,
+                    oil_temp=data.oil_temp,
+                    water_temp=data.water_temp,
+                    fuel_level=data.fuel_level,
+                    fuel=data.fuel,
+                    fuel_laps=data.fuel_laps,
+                    tc=data.tc,
+                    abs=data.abs,
+                    brake_bias=data.brake_bias,
+                    engine_map=data.engine_map,
+                    position=data.position,
+                    total_cars=data.total_cars,
+                    session_type=data.session_type,
+                    session_time_remaining=data.session_time_remaining,
+                    track_name=data.track_name,
+                    car_name=data.car_name,
+                    sector_1_delta=data.sector_1_delta,
+                    sector_2_delta=data.sector_2_delta,
+                    sector_3_delta=data.sector_3_delta,
+                    leaderboard=[],  # TODO: Parse leaderboard from ACC
+                    coaching_messages=[],
+                    coaching_message=None
+                )
+                
+                await telemetry_hub.broadcast_telemetry(unified)
+            
+            await asyncio.sleep(0.016)  # 60 FPS
+            
+    finally:
+        await reader.disconnect()
+        print("🏁 ACC mode stopped")
 
 
 @app.on_event("startup")
