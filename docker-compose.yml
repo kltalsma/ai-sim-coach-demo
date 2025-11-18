@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # InfluxDB - Time-series database for telemetry
+  influxdb:
+    image: influxdb:2.7
+    container_name: ai-sim-coach-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=simracingpass123
+      - DOCKER_INFLUXDB_INIT_ORG=simracing
+      - DOCKER_INFLUXDB_INIT_BUCKET=telemetry
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - simracing
+
+  # Python Backend - FastAPI + WebSocket + UDP receivers
+  backend:
+    build: ./backend
+    container_name: ai-sim-coach-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"   # WebSocket + API
+      - "9996:9996/udp"  # ACC
+      - "9997:9997/udp"  # RaceRoom
+      - "9998:9998/udp"  # AMS2
+      - "9999:9999/udp"  # LMU
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=my-super-secret-auth-token
+      - INFLUXDB_ORG=simracing
+      - INFLUXDB_BUCKET=telemetry
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    depends_on:
+      - influxdb
+    volumes:
+      - ./backend:/app
+    networks:
+      - simracing
+
+  # Grafana - Visualization platform
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: ai-sim-coach-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/ai-sim-coach/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    depends_on:
+      - influxdb
+    networks:
+      - simracing
+
+  # Frontend - Custom Dashboard (React/Vue/vanilla JS)
+  frontend:
+    build: ./frontend
+    container_name: ai-sim-coach-frontend
+    restart: unless-stopped
+    ports:
+      - "8124:80"
+    environment:
+      - BACKEND_WS_URL=ws://62.131.114.32:5001/ws
+      - BACKEND_API_URL=http://62.131.114.32:5001
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - simracing
+
+networks:
+  simracing:
+    driver: bridge
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:

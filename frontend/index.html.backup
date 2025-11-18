@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sim Racing Coach - Pitwall</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #121212;
+            color: #FFFFFF;
+            overflow: auto;
+            min-height: 100vh;
+        }
+
+        .pitwall-container {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        /* Module Base Styles */
+        .module {
+            background: #1E1E1E;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .module-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+
+        /* Header Module (Full Width) */
+        .header-module {
+            grid-column: 1 / 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+        }
+
+        .header-left {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .header-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-stat-label {
+            font-size: 11px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+        }
+
+        .header-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .position-value {
+            color: #FFC107;
+        }
+
+        .best-lap-value {
+            color: #BB86FC;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .connection-badge {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .connection-badge.connected {
+            background: #03DAC6;
+            color: #000000;
+        }
+
+        .connection-badge.disconnected {
+            background: #CF6679;
+            color: #FFFFFF;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.4; }
+        }
+
+        .control-btn {
+            padding: 10px 25px;
+            background: #CF6679;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .control-btn:hover {
+            background: #B34C5C;
+            transform: scale(1.05);
+        }
+
+        .control-btn.stopped {
+            background: #03DAC6;
+            color: #000000;
+        }
+
+        /* Track Map Module (Top Right) */
+        .map-module {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .track-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .track-conditions {
+            font-size: 11px;
+            color: #B3B3B3;
+        }
+
+        .map-canvas-container {
+            flex: 1;
+            position: relative;
+            background: #121212;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .track-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Leaderboard Module (Left Top) */
+        .leaderboard-module {
+            grid-column: 1;
+            grid-row: 2;
+            overflow-y: auto;
+            max-height: calc(100vh - 300px);
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .leaderboard-table thead {
+            position: sticky;
+            top: 0;
+            background: #1E1E1E;
+            z-index: 10;
+        }
+
+        .leaderboard-table th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 11px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            font-weight: 700;
+            border-bottom: 2px solid #333;
+        }
+
+        .leaderboard-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #2C2C2C;
+        }
+
+        .leaderboard-table tbody tr:nth-child(even) {
+            background: #252525;
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background: #2C2C2C;
+        }
+
+        .pos-cell {
+            font-weight: 700;
+            color: #FFC107;
+            width: 40px;
+        }
+
+        .driver-cell {
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .gap-positive {
+            color: #CF6679;
+        }
+
+        .gap-negative {
+            color: #03DAC6;
+        }
+
+        .class-indicator {
+            width: 4px;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: #FFC107;
+        }
+
+        /* Bottom Section (Full Width) */
+        .bottom-section {
+            grid-column: 1 / 3;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        /* Vehicle Data Clusters */
+        .data-cluster {
+            background: #1E1E1E;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .cluster-title {
+            font-size: 11px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: baseline;
+        }
+
+        .data-label {
+            font-size: 11px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+        }
+
+        .data-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            font-family: 'Courier New', monospace;
+        }
+
+        .data-value.best {
+            color: #BB86FC;
+        }
+
+        .data-value.positive {
+            color: #CF6679;
+        }
+
+        .data-value.negative {
+            color: #03DAC6;
+        }
+
+        /* Electronics Grid */
+        .electronics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .electronics-card {
+            background: #2C2C2C;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .electronics-card.active {
+            background: #BB86FC;
+            color: #000000;
+            box-shadow: 0 0 15px rgba(187, 134, 252, 0.6);
+        }
+
+        .electronics-label {
+            font-size: 10px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .electronics-card.active .electronics-label {
+            color: #000000;
+        }
+
+        .electronics-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        /* Tire Grid */
+        .tire-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .tire-box {
+            background: #2C2C2C;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .tire-box.hot {
+            border-color: #CF6679;
+        }
+
+        .tire-box.cold {
+            border-color: #0088ff;
+        }
+
+        .tire-box.optimal {
+            border-color: #03DAC6;
+        }
+
+        .tire-position {
+            font-size: 9px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .tire-temp {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .tire-pressure {
+            font-size: 11px;
+            color: #B3B3B3;
+            margin-top: 4px;
+        }
+
+        /* Speed/Gear Display */
+        .speed-gear-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .speed-display {
+            text-align: center;
+        }
+
+        .speed-value {
+            font-size: 56px;
+            font-weight: 700;
+            color: #03DAC6;
+            line-height: 1;
+            font-family: 'Courier New', monospace;
+        }
+
+        .speed-unit {
+            font-size: 14px;
+            color: #B3B3B3;
+            margin-top: 4px;
+        }
+
+        .gear-display {
+            text-align: center;
+            background: #2C2C2C;
+            border: 2px solid #03DAC6;
+            border-radius: 12px;
+            padding: 20px 30px;
+        }
+
+        .gear-label {
+            font-size: 10px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .gear-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #03DAC6;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* RPM Bar */
+        .rpm-container {
+            margin-top: 8px;
+        }
+
+        .rpm-label {
+            font-size: 10px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .rpm-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .rpm-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #2C2C2C;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .rpm-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #03DAC6 0%, #FFC107 70%, #CF6679 90%);
+            transition: width 0.1s ease;
+        }
+
+        /* Input Bars */
+        .input-bars {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .input-bar-wrapper {
+            flex: 1;
+        }
+
+        .input-bar-label {
+            font-size: 9px;
+            color: #B3B3B3;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .input-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #2C2C2C;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .input-bar-fill {
+            height: 100%;
+            transition: width 0.05s ease;
+        }
+
+        .throttle-fill { background: #03DAC6; }
+        .brake-fill { background: #CF6679; }
+        .clutch-fill { background: #BB86FC; }
+
+        /* Relative Position Bar */
+        .relative-module {
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 12px;
+            background: #1E1E1E;
+            border: 1px solid #333;
+            border-radius: 12px;
+        }
+
+        .relative-car {
+            font-size: 13px;
+            color: #B3B3B3;
+        }
+
+        .relative-gap {
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .relative-you {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFC107;
+            padding: 8px 20px;
+            background: #2C2C2C;
+            border-radius: 6px;
+        }
+
+        /* Coaching Messages */
+        .coaching-module {
+            grid-column: 2;
+            background: #1E1E1E;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            overflow-y: auto;
+            max-height: 120px;
+        }
+
+        .coaching-message {
+            font-size: 12px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: #2C2C2C;
+            border-left: 3px solid #03DAC6;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .coaching-message.warning {
+            border-left-color: #FFC107;
+        }
+
+        .coaching-message.critical {
+            border-left-color: #CF6679;
+        }
+    </style>
+</head>
+<body>
+    <div class="pitwall-container">
+        <!-- Header Module (Full Width) -->
+        <div class="header-module module">
+            <div class="header-left">
+                <div class="header-stat">
+                    <div class="header-stat-label">Position</div>
+                    <div class="header-stat-value position-value" id="headerPosition">9/25</div>
+                </div>
+                <div class="header-stat">
+                    <div class="header-stat-label">Session Time</div>
+                    <div class="header-stat-value" id="sessionTime">--:--</div>
+                </div>
+                <div class="header-stat">
+                    <div class="header-stat-label">Best Lap</div>
+                    <div class="header-stat-value best-lap-value" id="headerBestLap">--:--.---</div>
+                </div>
+                <div class="header-stat">
+                    <div class="header-stat-label">Last Lap</div>
+                    <div class="header-stat-value" id="headerLastLap">--:--.---</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="connection-badge disconnected" id="connectionStatus">Disconnected</div>
+                <button class="control-btn" id="controlBtn" onclick="toggleDemo()">Stop Demo</button>
+            </div>
+        </div>
+
+        <!-- Leaderboard Module (Left Column, Row 2) -->
+        <div class="leaderboard-module module">
+            <div class="module-title">Class Leaderboard</div>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>#</th>
+                        <th>Driver</th>
+                        <th>Gap</th>
+                        <th>Int</th>
+                        <th>Best</th>
+                        <th>S1</th>
+                        <th>S2</th>
+                        <th>S3</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr>
+                        <td class="pos-cell">1</td>
+                        <td>46</td>
+                        <td class="driver-cell">D. Vanthoor</td>
+                        <td>LDR</td>
+                        <td>--</td>
+                        <td>1:44.505</td>
+                        <td>22.401</td>
+                        <td>51.002</td>
+                        <td>31.102</td>
+                    </tr>
+                    <tr>
+                        <td class="pos-cell">2</td>
+                        <td>63</td>
+                        <td class="driver-cell">J. Gounon</td>
+                        <td class="gap-positive">+0.574</td>
+                        <td class="gap-positive">+0.574</td>
+                        <td>1:44.679</td>
+                        <td>22.445</td>
+                        <td>51.089</td>
+                        <td>31.145</td>
+                    </tr>
+                    <tr>
+                        <td class="pos-cell">3</td>
+                        <td>51</td>
+                        <td class="driver-cell">D. Rigon</td>
+                        <td class="gap-positive">+1.650</td>
+                        <td class="gap-positive">+1.076</td>
+                        <td>1:44.755</td>
+                        <td>22.478</td>
+                        <td>51.112</td>
+                        <td>31.165</td>
+                    </tr>
+                    <!-- More rows will be added here dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Track Map Module (Right Column, Row 2) -->
+        <div class="map-module module">
+            <div class="map-header">
+                <div>
+                    <div class="track-name" id="trackName">Spa-Francorchamps</div>
+                    <div class="track-conditions" id="trackConditions">
+                        <span id="trackTemp">22°C</span> | 
+                        <span id="airTemp">18°C</span> | 
+                        <span id="weather">Clear</span>
+                    </div>
+                </div>
+            </div>
+            <div class="map-canvas-container">
+                <canvas id="trackCanvas" class="track-canvas" width="600" height="500"></canvas>
+            </div>
+        </div>
+
+        <!-- Bottom Section - Vehicle Data (Row 3, Column 1) -->
+        <div class="data-cluster">
+            <div class="cluster-title">Lap Times</div>
+            <div class="data-row">
+                <span class="data-label">Current</span>
+                <span class="data-value" id="currentLapTime">--:--.---</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Last</span>
+                <span class="data-value" id="lastLapTime">--:--.---</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Best</span>
+                <span class="data-value best" id="bestLapTime">--:--.---</span>
+            </div>
+        </div>
+
+        <div class="data-cluster">
+            <div class="cluster-title">Sector Times</div>
+            <div class="data-row">
+                <span class="data-label">S1 Delta</span>
+                <span class="data-value" id="s1Delta">---.---</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">S2 Delta</span>
+                <span class="data-value" id="s2Delta">---.---</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">S3 Delta</span>
+                <span class="data-value" id="s3Delta">---.---</span>
+            </div>
+        </div>
+
+        <div class="data-cluster">
+            <div class="cluster-title">Electronics</div>
+            <div class="electronics-grid">
+                <div class="electronics-card" id="tcCard">
+                    <div class="electronics-label">TC</div>
+                    <div class="electronics-value" id="tcValue">5</div>
+                </div>
+                <div class="electronics-card" id="absCard">
+                    <div class="electronics-label">ABS</div>
+                    <div class="electronics-value" id="absValue">3</div>
+                </div>
+                <div class="electronics-card" id="bbCard">
+                    <div class="electronics-label">Brake Bias</div>
+                    <div class="electronics-value" id="bbValue">56%</div>
+                </div>
+                <div class="electronics-card" id="mapCard">
+                    <div class="electronics-label">Map</div>
+                    <div class="electronics-value" id="mapValue">1</div>
+                </div>
+                <div class="electronics-card" id="tc2Card">
+                    <div class="electronics-label">TC2</div>
+                    <div class="electronics-value" id="tc2Value">0</div>
+                </div>
+                <div class="electronics-card" id="cutCard">
+                    <div class="electronics-label">Cut</div>
+                    <div class="electronics-value" id="cutValue">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-cluster">
+            <div class="cluster-title">Fuel</div>
+            <div class="data-row">
+                <span class="data-label">Remaining</span>
+                <span class="data-value" id="fuelRemaining">--L</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Per Lap</span>
+                <span class="data-value" id="fuelPerLap">--L</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Laps Left</span>
+                <span class="data-value" id="fuelLaps">--</span>
+            </div>
+        </div>
+
+        <!-- Bottom Section - Physics Data (Row 4) -->
+        <div class="relative-module">
+            <span class="relative-car">
+                <span class="data-label">Behind:</span>
+                <span class="relative-gap gap-positive" id="gapBehind">+0.0s</span>
+            </span>
+            <span class="relative-you">YOU</span>
+            <span class="relative-car">
+                <span class="data-label">Ahead:</span>
+                <span class="relative-gap gap-negative" id="gapAhead">-0.0s</span>
+            </span>
+        </div>
+
+        <div class="coaching-module">
+            <div class="module-title">AI Coaching</div>
+            <div id="coachingMessages">
+                <div class="coaching-message">Waiting for telemetry data...</div>
+            </div>
+        </div>
+
+        <div class="data-cluster">
+            <div class="cluster-title">Speed / Gear</div>
+            <div class="speed-gear-display">
+                <div class="speed-display">
+                    <div class="speed-value" id="speedValue">0</div>
+                    <div class="speed-unit">KM/H</div>
+                </div>
+                <div class="gear-display">
+                    <div class="gear-label">Gear</div>
+                    <div class="gear-value" id="gearValue">N</div>
+                </div>
+            </div>
+            <div class="rpm-container">
+                <div class="rpm-label">RPM</div>
+                <div class="rpm-value" id="rpmValue">0</div>
+                <div class="rpm-bar-container">
+                    <div class="rpm-bar-fill" id="rpmBar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="input-bars">
+                <div class="input-bar-wrapper">
+                    <div class="input-bar-label">Throttle</div>
+                    <div class="input-bar-container">
+                        <div class="input-bar-fill throttle-fill" id="throttleBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="input-bar-wrapper">
+                    <div class="input-bar-label">Brake</div>
+                    <div class="input-bar-container">
+                        <div class="input-bar-fill brake-fill" id="brakeBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="input-bar-wrapper">
+                    <div class="input-bar-label">Clutch</div>
+                    <div class="input-bar-container">
+                        <div class="input-bar-fill clutch-fill" id="clutchBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-cluster">
+            <div class="cluster-title">Tire Data</div>
+            <div class="tire-grid">
+                <div class="tire-box" id="tireFL">
+                    <div class="tire-position">Front Left</div>
+                    <div class="tire-temp" id="tempFL">--°C</div>
+                    <div class="tire-pressure" id="pressFL">-- psi</div>
+                </div>
+                <div class="tire-box" id="tireFR">
+                    <div class="tire-position">Front Right</div>
+                    <div class="tire-temp" id="tempFR">--°C</div>
+                    <div class="tire-pressure" id="pressFR">-- psi</div>
+                </div>
+                <div class="tire-box" id="tireRL">
+                    <div class="tire-position">Rear Left</div>
+                    <div class="tire-temp" id="tempRL">--°C</div>
+                    <div class="tire-pressure" id="pressRL">-- psi</div>
+                </div>
+                <div class="tire-box" id="tireRR">
+                    <div class="tire-position">Rear Right</div>
+                    <div class="tire-temp" id="tempRR">--°C</div>
+                    <div class="tire-pressure" id="pressRR">-- psi</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const WS_HOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'localhost' 
+            : '62.131.114.32';
+        const WS_URL = `ws://${WS_HOST}:5001/ws`;
+        
+        console.log('WebSocket URL:', WS_URL);
+        
+        let ws = null;
+        let reconnectTimeout = null;
+        let demoRunning = true;
+        let maxCoachingMessages = 3;
+
+        // Spa-Francorchamps track layout
+        const SPA_TRACK = {
+            path: [
+                {x: 0.50, y: 0.90, name: "Start/Finish"},
+                {x: 0.55, y: 0.85},
+                {x: 0.60, y: 0.78, name: "La Source", corner: true},
+                {x: 0.63, y: 0.70},
+                {x: 0.65, y: 0.60, name: "Eau Rouge", corner: true},
+                {x: 0.67, y: 0.52, name: "Raidillon", corner: true},
+                {x: 0.68, y: 0.45},
+                {x: 0.70, y: 0.35},
+                {x: 0.72, y: 0.25},
+                {x: 0.73, y: 0.18, name: "Les Combes", corner: true},
+                {x: 0.70, y: 0.12},
+                {x: 0.65, y: 0.10, name: "Malmedy", corner: true},
+                {x: 0.58, y: 0.10},
+                {x: 0.50, y: 0.12, name: "Rivage", corner: true},
+                {x: 0.44, y: 0.15},
+                {x: 0.38, y: 0.20, name: "Pouhon", corner: true},
+                {x: 0.32, y: 0.28},
+                {x: 0.28, y: 0.35, name: "Campus", corner: true},
+                {x: 0.26, y: 0.42},
+                {x: 0.25, y: 0.50, name: "Stavelot", corner: true},
+                {x: 0.25, y: 0.58},
+                {x: 0.26, y: 0.68, name: "Blanchimont", corner: true},
+                {x: 0.28, y: 0.75},
+                {x: 0.32, y: 0.82, name: "Bus Stop", corner: true},
+                {x: 0.38, y: 0.87},
+                {x: 0.44, y: 0.90},
+                {x: 0.50, y: 0.90}
+            ]
+        };
+
+        // Draw track map
+        function drawTrackMap() {
+            const canvas = document.getElementById('trackCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.fillStyle = '#121212';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw track
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 24;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            
+            SPA_TRACK.path.forEach((point, index) => {
+                const x = point.x * width;
+                const y = point.y * height;
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+
+            // Draw center line
+            ctx.strokeStyle = '#1E1E1E';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            SPA_TRACK.path.forEach((point, index) => {
+                const x = point.x * width;
+                const y = point.y * height;
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw start/finish line
+            const startPoint = SPA_TRACK.path[0];
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x * width - 12, startPoint.y * height);
+            ctx.lineTo(startPoint.x * width + 12, startPoint.y * height);
+            ctx.stroke();
+
+            // Draw corner labels
+            ctx.fillStyle = '#666666';
+            ctx.font = '10px Roboto';
+            ctx.textAlign = 'center';
+            SPA_TRACK.path.forEach(point => {
+                if (point.corner && point.name) {
+                    const x = point.x * width;
+                    const y = point.y * height;
+                    ctx.fillText(point.name, x, y - 20);
+                }
+            });
+        }
+
+        // Update car position on track
+        function updateCarPosition(lapDistance) {
+            const canvas = document.getElementById('trackCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            drawTrackMap();
+
+            const totalPoints = SPA_TRACK.path.length - 1;
+            const exactPosition = lapDistance * totalPoints;
+            const pointIndex = Math.floor(exactPosition);
+            const fraction = exactPosition - pointIndex;
+
+            const point1 = SPA_TRACK.path[pointIndex];
+            const point2 = SPA_TRACK.path[(pointIndex + 1) % SPA_TRACK.path.length];
+
+            const carX = (point1.x + (point2.x - point1.x) * fraction) * width;
+            const carY = (point1.y + (point2.y - point1.y) * fraction) * height;
+
+            // Draw car
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = 'rgba(3, 218, 198, 0.8)';
+            ctx.fillStyle = '#03DAC6';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(carX, carY, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // Format time
+        function formatTime(seconds) {
+            if (!seconds || seconds >= 999) return '--:--.---';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const millis = Math.floor((seconds % 1) * 1000);
+            return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+        }
+
+        // Format delta
+        function formatDelta(seconds) {
+            if (!seconds || Math.abs(seconds) >= 999) return '---.---';
+            const sign = seconds >= 0 ? '+' : '';
+            return `${sign}${seconds.toFixed(3)}`;
+        }
+
+        // Get tire color class
+        function getTireColorClass(temp) {
+            if (temp < 70) return 'cold';
+            if (temp > 100) return 'hot';
+            return 'optimal';
+        }
+
+        // Update UI
+        function updateUI(data) {
+            if (!demoRunning) return;
+
+            // Header
+            document.getElementById('headerBestLap').textContent = formatTime(data.best_lap_time);
+            document.getElementById('headerLastLap').textContent = formatTime(data.last_lap_time);
+
+            // Speed, RPM, Gear
+            document.getElementById('speedValue').textContent = Math.round(data.speed || 0);
+            document.getElementById('gearValue').textContent = data.gear === 0 ? 'N' : (data.gear === -1 ? 'R' : data.gear);
+            document.getElementById('rpmValue').textContent = data.rpm || 0;
+            
+            const rpmPercent = ((data.rpm || 0) / (data.max_rpm || 8500)) * 100;
+            document.getElementById('rpmBar').style.width = `${Math.min(rpmPercent, 100)}%`;
+
+            // Inputs
+            document.getElementById('throttleBar').style.width = `${(data.throttle || 0) * 100}%`;
+            document.getElementById('brakeBar').style.width = `${(data.brake || 0) * 100}%`;
+            document.getElementById('clutchBar').style.width = `${(data.clutch || 0) * 100}%`;
+
+            // Lap times
+            document.getElementById('currentLapTime').textContent = formatTime(data.lap_time);
+            document.getElementById('lastLapTime').textContent = formatTime(data.last_lap_time);
+            document.getElementById('bestLapTime').textContent = formatTime(data.best_lap_time);
+
+            // Tire data
+            document.getElementById('tempFL').textContent = `${Math.round(data.tire_temp_fl || 0)}°C`;
+            document.getElementById('tempFR').textContent = `${Math.round(data.tire_temp_fr || 0)}°C`;
+            document.getElementById('tempRL').textContent = `${Math.round(data.tire_temp_rl || 0)}°C`;
+            document.getElementById('tempRR').textContent = `${Math.round(data.tire_temp_rr || 0)}°C`;
+
+            document.getElementById('pressFL').textContent = `${(data.tire_pressure_fl || 0).toFixed(1)} psi`;
+            document.getElementById('pressFR').textContent = `${(data.tire_pressure_fr || 0).toFixed(1)} psi`;
+            document.getElementById('pressRL').textContent = `${(data.tire_pressure_rl || 0).toFixed(1)} psi`;
+            document.getElementById('pressRR').textContent = `${(data.tire_pressure_rr || 0).toFixed(1)} psi`;
+
+            document.getElementById('tireFL').className = `tire-box ${getTireColorClass(data.tire_temp_fl)}`;
+            document.getElementById('tireFR').className = `tire-box ${getTireColorClass(data.tire_temp_fr)}`;
+            document.getElementById('tireRL').className = `tire-box ${getTireColorClass(data.tire_temp_rl)}`;
+            document.getElementById('tireRR').className = `tire-box ${getTireColorClass(data.tire_temp_rr)}`;
+
+            // Fuel
+            const fuelLiters = (data.fuel_level || 0) * 120; // Assume 120L tank
+            document.getElementById('fuelRemaining').textContent = `${fuelLiters.toFixed(1)}L`;
+            document.getElementById('fuelLaps').textContent = (data.fuel_remaining_laps || 0).toFixed(1);
+
+            // Track conditions
+            document.getElementById('trackTemp').textContent = `${Math.round(data.track_temp || 0)}°C`;
+            document.getElementById('airTemp').textContent = `${Math.round(data.air_temp || 0)}°C`;
+
+            // Update car position
+            updateCarPosition(data.lap_distance || 0);
+
+            // Coaching messages
+            if (data.coaching_messages && data.coaching_messages.length > 0) {
+                const container = document.getElementById('coachingMessages');
+                container.innerHTML = '';
+                
+                data.coaching_messages.slice(0, maxCoachingMessages).forEach(msg => {
+                    const messageDiv = document.createElement('div');
+                    let messageClass = 'coaching-message';
+                    
+                    if (msg.includes('CRITICAL') || msg.includes('🔴')) {
+                        messageClass += ' critical';
+                    } else if (msg.includes('⚠️') || msg.includes('🔥')) {
+                        messageClass += ' warning';
+                    }
+                    
+                    messageDiv.className = messageClass;
+                    messageDiv.textContent = msg;
+                    container.appendChild(messageDiv);
+                });
+            }
+        }
+
+        // Toggle demo
+        function toggleDemo() {
+            demoRunning = !demoRunning;
+            const btn = document.getElementById('controlBtn');
+            if (demoRunning) {
+                btn.textContent = 'Stop Demo';
+                btn.classList.remove('stopped');
+                connect();
+            } else {
+                btn.textContent = 'Start Demo';
+                btn.classList.add('stopped');
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+            }
+        }
+
+        // WebSocket connection
+        function connect() {
+            if (!demoRunning) return;
+
+            console.log('Connecting to WebSocket...');
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').className = 'connection-badge connected';
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateUI(data);
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').className = 'connection-badge disconnected';
+                
+                if (demoRunning) {
+                    reconnectTimeout = setTimeout(() => {
+                        console.log('Attempting to reconnect...');
+                        connect();
+                    }, 3000);
+                }
+            };
+        }
+
+        // Initialize
+        drawTrackMap();
+        connect();
+    </script>
+</body>
+</html>

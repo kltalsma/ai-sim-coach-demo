@@ -1,0 +1,368 @@
+{
+  "title": "🏁 Sim Racing Telemetry",
+  "tags": ["racing", "telemetry", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1s",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Speed (km/h)",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"speed\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "km/h",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never",
+            "axisPlacement": "auto"
+          },
+          "unit": "velocitykmh"
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      }
+    },
+    {
+      "id": 2,
+      "title": "RPM",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rpm\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "RPM",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
+          },
+          "unit": "rpm"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Current Speed",
+      "type": "gauge",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"speed\")\n  |> last()",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 200, "color": "yellow"},
+              {"value": 280, "color": "red"}
+            ]
+          },
+          "unit": "velocitykmh",
+          "min": 0,
+          "max": 350
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Current RPM",
+      "type": "gauge",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rpm\")\n  |> last()",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 7000, "color": "yellow"},
+              {"value": 8200, "color": "red"}
+            ]
+          },
+          "unit": "rpm",
+          "min": 0,
+          "max": 9000
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Gear",
+      "type": "stat",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 16, "y": 4, "w": 4, "h": 4},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"gear\")\n  |> last()",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"value": 0, "color": "blue"}]
+          }
+        }
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Best Lap Time",
+      "type": "stat",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 20, "y": 4, "w": 4, "h": 4},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"best_lap_time\")\n  |> last()",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"value": 0, "color": "green"}]
+          },
+          "unit": "s"
+        }
+      },
+      "options": {
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Throttle & Brake Input",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"throttle\")\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))",
+          "refId": "A"
+        },
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"brake\")\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "showPoints": "never"
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "title": "Steering Input",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"steering\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Steering",
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 20
+          },
+          "min": -1,
+          "max": 1
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Tire Temperatures (°C)",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"tire_temp_fl\" or r[\"_field\"] == \"tire_temp_fr\" or r[\"_field\"] == \"tire_temp_rl\" or r[\"_field\"] == \"tire_temp_rr\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "°C",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Brake Temperatures (°C)",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"brake_temp_fl\" or r[\"_field\"] == \"brake_temp_fr\" or r[\"_field\"] == \"brake_temp_rl\" or r[\"_field\"] == \"brake_temp_rr\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "°C",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "G-Forces",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"g_lateral\" or r[\"_field\"] == \"g_longitudinal\")",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "G",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Fuel Level",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"fuel_level\")\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 30
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 15, "color": "yellow"},
+              {"value": 30, "color": "green"}
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Lap Distance Progress",
+      "type": "timeseries",
+      "datasource": "InfluxDB",
+      "gridPos": {"x": 0, "y": 32, "w": 24, "h": 6},
+      "targets": [{
+        "query": "from(bucket: \"telemetry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"lap_distance\")\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "% Around Track",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20
+          },
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      }
+    }
+  ]
+}
