@@ -808,7 +808,7 @@
             </div>
             <div class="controls">
                 <span class="status-badge status-connected" id="statusBadge">Connected</span>
-                <button class="btn btn-danger" id="toggleDemo">Stop Demo</button>
+                <span class="status-badge" id="gameBadge" style="background: #2563eb; margin-left: 8px;">Demo Mode</span>
             </div>
         </div>
 
@@ -1229,6 +1229,11 @@
             if (data.coaching_message) {
                 addCoachingMessage(data.coaching_message);
             }
+            
+            // Update game badge
+            if (data.game) {
+                updateGameBadge(data.game);
+            }
         }
 
         function updateTire(pos, tireTemp, brakeTemp, press) {
@@ -1428,24 +1433,26 @@
         }
 
         // Demo Control
-        document.getElementById('toggleDemo').addEventListener('click', async () => {
-            const btn = document.getElementById('toggleDemo');
-            try {
-                if (demoRunning) {
-                    await fetch(`http://${WS_HOST}:5001/demo/stop`, { method: 'POST' });
-                    btn.textContent = 'Start Demo';
-                    btn.className = 'btn btn-primary';
-                    demoRunning = false;
+        // Update game badge based on telemetry data
+        function updateGameBadge(gameName) {
+            const gameBadge = document.getElementById('gameBadge');
+            if (gameBadge && gameName) {
+                gameBadge.textContent = gameName;
+                
+                // Color code by game
+                if (gameName.includes('ACC') || gameName.includes('Competizione')) {
+                    gameBadge.style.background = '#e63946'; // Red for ACC
+                } else if (gameName.includes('RaceRoom')) {
+                    gameBadge.style.background = '#06d6a0'; // Green for RaceRoom
+                } else if (gameName.includes('Le Mans') || gameName.includes('LMU')) {
+                    gameBadge.style.background = '#118ab2'; // Blue for LMU
+                } else if (gameName.includes('Automobilista') || gameName.includes('AMS2')) {
+                    gameBadge.style.background = '#ffd60a'; // Yellow for AMS2
                 } else {
-                    await fetch(`http://${WS_HOST}:5001/demo/start`, { method: 'POST' });
-                    btn.textContent = 'Stop Demo';
-                    btn.className = 'btn btn-danger';
-                    demoRunning = true;
+                    gameBadge.style.background = '#2563eb'; // Default blue for Demo
                 }
-            } catch (error) {
-                console.error('Toggle error:', error);
             }
-        });
+        }
 
         // Initialize
         connectWebSocket();

@@ -29,9 +29,10 @@ UDP_PORT_AMS2 = 9998  # Automobilista 2 (Project CARS format)
 UDP_PORT_LMU = 9999  # Le Mans Ultimate (rF2 format)
 WEBSOCKET_PORT = 5001
 
-# Demo mode control
-demo_task = None
-demo_running = False
+# Telemetry mode control
+telemetry_task = None
+telemetry_running = False
+current_mode = "none"  # none, demo, acc, r3e, ams2, lmu
 INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://localhost:8086")
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "my-token")
 INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "simracing")
@@ -334,72 +335,17 @@ async def root():
 async def status():
     """System status"""
     return {
-        "udp_ports": {
-            "ACC": UDP_PORT_ACC,
-            "RaceRoom": UDP_PORT_R3E,
-            "AMS2": UDP_PORT_AMS2,
-            "LMU": UDP_PORT_LMU
-        },
-        "websocket_port": WEBSOCKET_PORT,
+        "current_mode": current_mode,
+        "telemetry_running": telemetry_running,
         "connected_clients": len(telemetry_hub.websocket_clients),
         "influxdb_connected": telemetry_hub.influx_client is not None,
         "last_update": telemetry_hub.latest_telemetry.timestamp if telemetry_hub.latest_telemetry else None,
-        "demo_running": demo_running
+        "current_game": telemetry_hub.latest_telemetry.game if telemetry_hub.latest_telemetry else None,
+        "supported_games": ["acc", "r3e", "ams2", "lmu", "demo"]
     }
 
 
-@app.post("/demo/start")
-async def start_demo():
-    """Start demo mode"""
-    global demo_task, demo_running
-    if not demo_running:
-        demo_running = True
-        demo_task = asyncio.create_task(demo_mode())
-        return {"status": "started", "message": "Demo mode started"}
-    return {"status": "already_running", "message": "Demo mode already running"}
 
-
-@app.post("/demo/stop")
-async def stop_demo():
-    """Stop demo mode"""
-    global demo_task, demo_running
-    if demo_running:
-        demo_running = False
-        if demo_task:
-            demo_task.cancel()
-            try:
-                await demo_task
-            except asyncio.CancelledError:
-                pass
-        return {"status": "stopped", "message": "Demo mode stopped"}
-    return {"status": "already_stopped", "message": "Demo mode already stopped"}
-
-
-@app.post("/acc/start")
-async def start_acc():
-    """Start ACC telemetry reading"""
-    global demo_task, demo_running
-    if not demo_running:
-        demo_running = True
-        demo_task = asyncio.create_task(acc_mode())
-        return {"status": "started", "message": "ACC telemetry reading started"}
-    return {"status": "already_running", "message": "A telemetry mode is already running"}
-
-
-@app.post("/acc/stop")
-async def stop_acc():
-    """Stop ACC telemetry reading"""
-    global demo_task, demo_running
-    if demo_running:
-        demo_running = False
-        if demo_task:
-            demo_task.cancel()
-            try:
-                await demo_task
-            except asyncio.CancelledError:
-                pass
-        return {"status": "stopped", "message": "ACC telemetry reading stopped"}
-    return {"status": "already_stopped", "message": "No telemetry mode running"}
 
 
 async def udp_receiver_acc():
@@ -432,14 +378,14 @@ async def udp_receiver_lmu():
 
 async def demo_mode():
     """Demo mode with simulated telemetry"""
-    global demo_running
+    global telemetry_running
     print("🎮 Starting DEMO mode with simulated telemetry")
     
     from demo_telemetry_generator import GT3TelemetrySimulator
     
     simulator = GT3TelemetrySimulator()
     
-    while demo_running:
+    while telemetry_running:
         frame = simulator.generate_frame()
         
         # Convert to unified format
@@ -510,7 +456,7 @@ async def demo_mode():
 
 async def acc_mode():
     """ACC mode with real telemetry from Assetto Corsa Competizione"""
-    global demo_running
+    global telemetry_running
     print("🏎️  Starting ACC mode - reading telemetry from Assetto Corsa Competizione")
     
     from telemetry_readers.acc_reader import ACCReader
@@ -521,13 +467,13 @@ async def acc_mode():
     connected = await reader.connect()
     if not connected:
         print("❌ Failed to connect to ACC. Make sure ACC is running.")
-        demo_running = False
+        telemetry_running = False
         return
     
     print("✅ Connected to ACC successfully!")
     
     try:
-        while demo_running:
+        while telemetry_running:
             # Read telemetry from ACC
             data = await reader.read_telemetry()
             
@@ -597,19 +543,74 @@ async def acc_mode():
         print("🏁 ACC mode stopped")
 
 
+async def detect_running_game():
+    """Detect which sim racing game is currently running"""
+    # Try ACC
+    from telemetry_readers.acc_reader import ACCReader
+    acc_reader = ACCReader()
+    if await acc_reader.connect():
+        await acc_reader.disconnect()
+        return "acc"
+    
+    # TODO: Try other games (R3E, AMS2, LMU)
+    # from telemetry_readers.r3e_reader import R3EReader
+    # r3e_reader = R3EReader()
+    # if await r3e_reader.connect():
+    #     await r3e_reader.disconnect()
+    #     return "r3e"
+    
+    return None
+
+
+async def start_mode(mode: str):
+    """Start telemetry reading for specified mode"""
+    global telemetry_task, telemetry_running, current_mode
+    
+    # Stop current mode if running
+    if telemetry_running:
+        telemetry_running = False
+        if telemetry_task:
+            telemetry_task.cancel()
+            try:
+                await telemetry_task
+            except asyncio.CancelledError:
+                pass
+    
+    # Start new mode
+    current_mode = mode
+    telemetry_running = True
+    
+    if mode == "acc":
+        print("🏎️  Starting ACC telemetry...")
+        telemetry_task = asyncio.create_task(acc_mode())
+    elif mode == "demo":
+        print("🎮 Starting demo mode...")
+        telemetry_task = asyncio.create_task(demo_mode())
+    # TODO: Add other modes (r3e, ams2, lmu)
+
+
+async def auto_detect_loop():
+    """Continuously auto-detect and switch games"""
+    global current_mode
+    
+    print("🔍 Starting auto-detection loop...")
+    
+    while True:
+        detected_game = await detect_running_game()
+        
+        if detected_game and detected_game != current_mode:
+            print(f"✅ Detected {detected_game.upper()}! Switching from {current_mode}...")
+            await start_mode(detected_game)
+        elif not detected_game and current_mode != "demo":
+            print("ℹ️  No game detected. Switching to demo mode...")
+            await start_mode("demo")
+        
+        await asyncio.sleep(5)  # Check every 5 seconds
+
+
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks"""
-    global demo_task, demo_running
-    # Start UDP receivers for all supported games
-    asyncio.create_task(udp_receiver_acc())
-    asyncio.create_task(udp_receiver_r3e())
-    asyncio.create_task(udp_receiver_ams2())
-    asyncio.create_task(udp_receiver_lmu())
-    
-    # Start demo mode (will auto-stop when real telemetry arrives)
-    demo_running = True
-    demo_task = asyncio.create_task(demo_mode())
     
     print("=" * 80)
     print("🏁 AI Sim Racing Coach - Backend Started")
@@ -618,6 +619,12 @@ async def startup_event():
     print(f"API: http://localhost:{WEBSOCKET_PORT}")
     print(f"Supported Games: ACC, RaceRoom, LMU, Automobilista 2")
     print("=" * 80)
+    
+    # Start with demo mode, then begin auto-detection
+    await start_mode("demo")
+    
+    # Start auto-detection loop in background
+    asyncio.create_task(auto_detect_loop())
 
 
 if __name__ == "__main__":
